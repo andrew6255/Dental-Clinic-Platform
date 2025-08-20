@@ -1,23 +1,58 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// src/App.jsx
+import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { auth } from "./firebase";
 
-export default function App() {
-  const nav = useNavigate();
+import Login from "./pages/Login";
+import RoleSelect from "./pages/RoleSelect";
+import ClinicSelect from "./pages/ClinicSelect";
+
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+import SecretaryDashboard from "./pages/secretary/SecretaryDashboard";
+import PatientDashboard from "./pages/patient/PatientDashboard";
+import MyFiles from "./pages/patient/MyFiles";
+import Book from "./pages/patient/Book";
+import Reschedule from "./pages/patient/Reschedule";
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      if (!u) nav("/login");
-      else nav("/role");
+      setUser(u || null);
+      setAuthChecked(true);
+      // restore clinicId on refresh
+      if (!u) localStorage.removeItem("clinicId");
     });
     return () => unsub();
-  }, [nav]);
+  }, []);
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">ClinicFlow (Local)</h1>
-      <p>Redirecting…</p>
-    </div>
-  );
+  const router = createBrowserRouter([
+    { path: "/", element: <ClinicSelect /> },
+    { path: "/login", element: <Login /> },
+    { path: "/role", element: <RoleSelect /> },
+
+    { path: "/admin", element: <AdminDashboard /> },
+    { path: "/doctor", element: <DoctorDashboard /> },
+    { path: "/secretary", element: <SecretaryDashboard /> },
+    { path: "/patient", element: <PatientDashboard /> },
+
+    { path: "/my-files", element: <MyFiles /> },
+    { path: "/book", element: <Book /> },
+    { path: "/reschedule/:appointmentId", element: <Reschedule /> },
+  ]);
+
+  // IMPORTANT: Only block on the very first auth check.
+  // Do NOT block later when switching clinics.
+  if (!authChecked) {
+    return <div className="p-6">Checking roles…</div>;
+  }
+
+  // If not signed in, router will send user to /login from pages that need auth.
+  return <RouterProvider router={router} />;
 }
+
+export default App;

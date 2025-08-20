@@ -1,30 +1,40 @@
 // src/hooks/useRoleClinic.js
 import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function useRoleClinic() {
   const [role, setRole] = useState(null);
-  const [clinicName, setClinicName] = useState("");
+  const [clinicId, setClinicId] = useState(() => localStorage.getItem("clinicId") || "demo-clinic");
+  const [clinicName, setClinicName] = useState("Clinic");
   const [loading, setLoading] = useState(true);
 
-  const clinicId = localStorage.getItem("clinicId") || "demo-clinic";
-
   useEffect(() => {
-    (async () => {
-      const u = auth.currentUser;
-      if (!u) { setLoading(false); return; }
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        setRole(null);
+        setLoading(false);
+        return;
+      }
 
-      // role
-      const rdoc = await getDoc(doc(db, "userRoles", `${u.uid}_${clinicId}`));
-      if (rdoc.exists()) setRole(rdoc.data().role || null);
+      // restore clinic id if user refreshed or just selected
+      const saved = localStorage.getItem("clinicId");
+      if (saved && saved !== clinicId) setClinicId(saved);
 
-      // clinic name
-      const cdoc = await getDoc(doc(db, "clinics", clinicId));
-      if (cdoc.exists()) setClinicName(cdoc.data().name || clinicId);
-
-      setLoading(false);
-    })();
+      try {
+        const rdoc = await getDoc(doc(db, "userRoles", `${u.uid}_${saved || clinicId}`));
+        if (rdoc.exists()) {
+          setRole(rdoc.data().role);
+        } else {
+          setRole(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsub();
+    // include clinicId so when it changes (after Enter Clinic) we refetch role
   }, [clinicId]);
 
   return { role, clinicId, clinicName, loading };

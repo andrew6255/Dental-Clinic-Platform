@@ -18,7 +18,7 @@ export default function Sidebar({ role }) {
   ];
 
   return (
-    <aside className="w-full sm:w-60 shrink-0">
+    <aside className="w-60 shrink-0 sticky top-16 self-start space-y-2">
       <nav className="sticky top-16 space-y-2">
         {items.filter(i => i.roles.includes(role)).map(i => (
           <NavLink

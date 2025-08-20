@@ -9,8 +9,8 @@ import { auth } from "../firebase";
 
 export default function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("anna@example.com");
-  const [pw, setPw] = useState("password");
+  const [email, setEmail] = useState("@gmail.com");
+  const [pw, setPw] = useState("andrew12345");
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
 

@@ -166,10 +166,10 @@ export default function SecretaryDashboard() {
   return (
     <div className="min-h-screen">
       <NavBar clinicName={clinicName} role={role} />
-      <div className="mx-auto max-w-6xl px-4 py-6 flex gap-6">
+      <div className="mx-auto max-w-6xl px-4 py-6 grid gap-6 md:grid-cols-[240px,1fr]">
         <Sidebar role={role} />
 
-        <main className="flex-1 space-y-6">
+        <main className="space-y-6 max-w-3xl">
           <h1 className="text-2xl font-bold">Secretary – Schedule</h1>
 
           {/* Filters */}
