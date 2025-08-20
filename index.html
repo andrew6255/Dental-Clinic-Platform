@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <!-- IMPORTANT: The viewport meta tag ensures responsiveness across devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maraashly Church App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter (for a modern look) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS for transitions and animations */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0; /* Ensure no default body margin */
+            padding: 0; /* Ensure no default body padding */
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            display: flex;
+            flex-direction: column; /* Allow content to stack vertically */
+        }
+        #root {
+            flex-grow: 1; /* Allow the root div to fill available space */
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-scaleIn {
+            animation: scaleIn 0.3s ease-out forwards;
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* For responsive video embeds */
+        .aspect-w-16 {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        }
+        .aspect-h-9 {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <!-- This script tag points to your React application's entry point -->
+    <script type="module" src="/src/main.jsx"></script>
+    <!-- QR Code Generation Library - qrcode.min.js -->
+    <!-- This library creates QR codes directly on a canvas element. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</body>
+</html>

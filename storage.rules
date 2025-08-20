@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    ////////////////////////////////////////////////////////////////////////
+    // Storage objects for patient documents
+    // Path: clinics/{clinicId}/patients/{patientId}/{docId}/{fileName}
+    ////////////////////////////////////////////////////////////////////////
+    match /clinics/{clinicId}/patients/{patientId}/{docId}/{fileName} {
+
+      // Staff (admin/doctor/secretary) can read/write any file
+      allow read, write: if request.auth != null
+        && exists(/databases/(default)/documents/userRoles/(
+          request.auth.uid + "_" + clinicId
+        )) && (
+          let role = get(/databases/(default)/documents/userRoles/(
+            request.auth.uid + "_" + clinicId
+          )).data.role;
+          role in ["admin","doctor","secretary"]
+        );
+
+      // Patient can READ their own file only if:
+      //   - their userId matches the patient record
+      //   - the Firestore document is marked shareWithPatient == true
+      allow read: if request.auth != null
+        && get(/databases/(default)/documents/clinics/$(clinicId)/patients/$(patientId)).data.userId == request.auth.uid
+        && get(/databases/(default)/documents/clinics/$(clinicId)/documents/$(docId)).data.shareWithPatient == true;
+    }
+  }
+}

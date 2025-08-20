@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add Inter font - best practice is to link it in index.html for production */
+/* For development simplicity, you can import it here, but index.html is better */
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); */
+
+body {
+  font-family: 'Inter', sans-serif;
+}

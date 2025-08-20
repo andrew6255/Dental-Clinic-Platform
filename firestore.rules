@@ -1,0 +1,204 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    ////////////////////////////////////////////////////////////////////////
+    // Helpers
+    ////////////////////////////////////////////////////////////////////////
+
+    // Returns the userRole doc for the signed-in user in a clinic
+    function roleDoc(clinicId) {
+      return get(/databases/$(database)/documents/userRoles/(
+        request.auth.uid + "_" + clinicId
+      ));
+    }
+
+    function hasRole(clinicId) {
+      return request.auth != null && roleDoc(clinicId).exists();
+    }
+
+    function roleOf(clinicId) {
+      return roleDoc(clinicId).data.role;
+    }
+
+    function isAdmin(clinicId) {
+      return hasRole(clinicId) && roleOf(clinicId) == "admin";
+    }
+    function isDoctor(clinicId) {
+      return hasRole(clinicId) && roleOf(clinicId) == "doctor";
+    }
+    function isSecretary(clinicId) {
+      return hasRole(clinicId) && roleOf(clinicId) == "secretary";
+    }
+    function isStaff(clinicId) {
+      return isAdmin(clinicId) || isDoctor(clinicId) || isSecretary(clinicId);
+    }
+
+    // True if the current user is the patient for {patientId} in {clinicId}
+    function isPatientFor(clinicId, patientId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/clinics/$(clinicId)/patients/$(patientId)).data.userId
+           == request.auth.uid;
+    }
+
+    // Convenience: allow read for staff of a clinic
+    function staffRead(clinicId) {
+      return isStaff(clinicId);
+    }
+    // Convenience: allow write for staff of a clinic
+    function staffWrite(clinicId) {
+      return isStaff(clinicId);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // userRoles  (doc id: "<uid>_<clinicId>")
+    ////////////////////////////////////////////////////////////////////////
+    match /userRoles/{uidClinic} {
+      // A user may read/create/update only their own role doc.
+      allow read, create, update: if request.auth != null
+        && request.auth.uid == uidClinic.split('_')[0]
+        // Prevent privilege escalation or hijacking
+        && (
+          // On create or update, uid & clinicId must match the docId pieces
+          (request.method == 'create' || request.method == 'update') ?
+          (
+            request.resource.data.uid == uidClinic.split('_')[0] &&
+            request.resource.data.clinicId == uidClinic.split('_')[1] &&
+            request.resource.data.role in ['admin','doctor','secretary','patient']
+          )
+          : true
+        );
+      // Deleting your own role (optional; useful for tests)
+      allow delete: if request.auth != null
+        && request.auth.uid == uidClinic.split('_')[0];
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Clinic root doc
+    ////////////////////////////////////////////////////////////////////////
+    match /clinics/{clinicId} {
+      // Staff can read/update clinic info; patients may read basic info if needed
+      allow read: if isStaff(clinicId);
+      allow create, update, delete: if isAdmin(clinicId) || isSecretary(clinicId);
+
+      //////////////////////////////////////////////////////////////////////
+      // Patients
+      //////////////////////////////////////////////////////////////////////
+      match /patients/{patientId} {
+        // Staff: full access
+        allow read: if staffRead(clinicId);
+        allow create, update, delete: if staffWrite(clinicId);
+
+        // The patient can read their own profile
+        allow read: if isPatientFor(clinicId, patientId);
+
+        // The patient can update limited self-service fields (adjust as needed)
+        allow update: if isPatientFor(clinicId, patientId)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
+              // whitelist fields a patient is allowed to update
+              ['phone','address','emergencyContact','preferences']
+             );
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Providers
+      //////////////////////////////////////////////////////////////////////
+      match /providers/{providerId} {
+        allow read: if staffRead(clinicId);
+        // Admin/Secretary manage provider profiles
+        allow create, update, delete: if isAdmin(clinicId) || isSecretary(clinicId);
+
+        // Availability subcollection
+        match /availability/{day} {
+          allow read: if staffRead(clinicId);
+          // Admin/Secretary manage availability; doctor may edit their own availability
+          allow create, update, delete: if isAdmin(clinicId) || isSecretary(clinicId) || isDoctor(clinicId);
+        }
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Services (catalog of treatments)
+      //////////////////////////////////////////////////////////////////////
+      match /services/{serviceId} {
+        allow read: if isStaff(clinicId) || request.auth != null; // patients may read services
+        allow create, update, delete: if isAdmin(clinicId) || isSecretary(clinicId);
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Appointments
+      //////////////////////////////////////////////////////////////////////
+      match /appointments/{appointmentId} {
+        // Staff can see and manage all appointments
+        allow read: if staffRead(clinicId);
+        allow create, update, delete: if staffWrite(clinicId);
+
+        // Patient can read their own appointments
+        allow read: if isPatientFor(clinicId, resource.data.patientId);
+
+        // Patient may create a "requested" appointment for themselves only
+        allow create: if request.auth != null
+          && isPatientFor(clinicId, request.resource.data.patientId)
+          && request.resource.data.status == "requested"
+          && request.resource.data.clinicId == clinicId;
+
+        // Patient may cancel their own appointment (no other fields changed)
+        allow update: if request.auth != null
+          && isPatientFor(clinicId, resource.data.patientId)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
+          && request.resource.data.status == "cancelled";
+
+        // Patient cannot delete appointments
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Invoices
+      //////////////////////////////////////////////////////////////////////
+      match /invoices/{invoiceId} {
+        // Staff: full access
+        allow read: if staffRead(clinicId);
+        allow create, update, delete: if staffWrite(clinicId);
+
+        // Patient: read only their own invoices
+        allow read: if isPatientFor(clinicId, resource.data.patientId);
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Documents metadata (pairs with Storage objects)
+      //////////////////////////////////////////////////////////////////////
+      match /documents/{docId} {
+        // Staff: full access
+        allow read: if staffRead(clinicId);
+        allow create, update, delete: if staffWrite(clinicId);
+
+        // Patient: read only if sharedWithPatient and the doc belongs to them
+        allow read: if request.auth != null
+          && resource.data.shareWithPatient == true
+          && isPatientFor(clinicId, resource.data.patientId);
+      }
+
+      //////////////////////////////////////////////////////////////////////
+      // Waitlist
+      //////////////////////////////////////////////////////////////////////
+      match /waitlist/{entryId} {
+        allow read: if staffRead(clinicId);
+        allow create, update, delete: if staffWrite(clinicId);
+
+        // Patient may add themselves to the waitlist
+        allow create: if request.auth != null
+          && isPatientFor(clinicId, request.resource.data.patientId)
+          && request.resource.data.clinicId == clinicId;
+
+        // Patient may delete their own waitlist entry
+        allow delete: if request.auth != null
+          && isPatientFor(clinicId, resource.data.patientId);
+      }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Default deny
+    ////////////////////////////////////////////////////////////////////////
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
