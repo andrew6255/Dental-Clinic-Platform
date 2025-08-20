@@ -11,7 +11,10 @@ export default function Sidebar({ role }) {
     { to: "/patients", label: "Patients", roles: ["admin","doctor","secretary"] },
     { to: "/billing",  label: "Billing",  roles: ["admin","secretary"] },
     { to: "/availability", label: "Availability", roles: ["admin","secretary"] },
+    { to: "/services", label: "Services", roles: ["admin","secretary","doctor"] },
+    { to: "/inventory", label: "Inventory", roles: ["admin","secretary"] },
     { to: "/my-files", label: "My files", roles: ["patient"] },
+    { to: "/book", label: "Book", roles: ["patient"] },
   ];
 
   return (

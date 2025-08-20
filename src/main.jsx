@@ -16,6 +16,11 @@ import Billing from "./pages/common/Billing";
 import ProviderAvailability from "./pages/common/ProviderAvailability";
 import PatientDetails from "./pages/common/PatientDetails";
 import MyFiles from "./pages/patient/MyFiles";
+import Services from "./pages/common/Services";
+import Book from "./pages/patient/Book";
+import Inventory from "./pages/common/Inventory";
+import RequireRole from "./components/RequireRole";
+import Reschedule from "./pages/patient/Reschedule";
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
@@ -31,7 +36,10 @@ const router = createBrowserRouter([
   { path: "/billing", element: <Billing /> },
   { path: "/patients/:patientId", element: <PatientDetails /> },
   { path: "/my-files", element: <MyFiles /> },
-
+  { path: "/services", element: <Services /> },
+  { path: "/book", element: <Book /> },
+  { path: "/inventory", element: (<RequireRole roles={["admin","secretary"]}><Inventory /></RequireRole>) },
+  { path: "/reschedule/:appointmentId", element: <Reschedule /> },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
